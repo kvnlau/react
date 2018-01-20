@@ -102,9 +102,7 @@ describe('ReactDOMServerHydration', () => {
       element.innerHTML = lastMarkup;
       expect(() => {
         instance = ReactDOM.render(<TestComponent name="y" />, element);
-      }).toWarnDev('Text content did not match. Server: "x" Client: "y"', {
-        withoutStack: true,
-      });
+      }).toWarnDev('Text content did not match. Server: "x" Client: "y"');
       expect(mountCount).toEqual(4);
       expect(element.innerHTML.length > 0).toBe(true);
       expect(element.innerHTML).not.toEqual(lastMarkup);
@@ -187,9 +185,7 @@ describe('ReactDOMServerHydration', () => {
       element.innerHTML = lastMarkup;
       expect(() => {
         instance = ReactDOM.hydrate(<TestComponent name="y" />, element);
-      }).toWarnDev('Text content did not match. Server: "x" Client: "y"', {
-        withoutStack: true,
-      });
+      }).toWarnDev('Text content did not match. Server: "x" Client: "y"');
       expect(mountCount).toEqual(4);
       expect(element.innerHTML.length > 0).toBe(true);
       expect(element.innerHTML).not.toEqual(lastMarkup);
@@ -252,7 +248,6 @@ describe('ReactDOMServerHydration', () => {
       ReactDOM.hydrate(<button autoFocus={false}>client</button>, element),
     ).toWarnDev(
       'Warning: Text content did not match. Server: "server" Client: "client"',
-      {withoutStack: true},
     );
 
     expect(element.firstChild.focus).not.toHaveBeenCalled();
