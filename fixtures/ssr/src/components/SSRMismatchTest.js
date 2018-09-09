@@ -39,8 +39,7 @@ const testCases = [
     ),
   },
   {
-    key:
-      'ssr-warnForTextDifference-warnForUnmatchedText-didNotMatchHydratedContainerTextInstance',
+    key: 'ssr-warnForTextDifference-didNotMatchHydratedContainerTextInstance',
     render: () => (
       <SSRMismatchTestRootHydrate
         serverHTML={'SSRMismatchTest server text'}
@@ -49,8 +48,7 @@ const testCases = [
     ),
   },
   {
-    key:
-      'ssr-warnForTextDifference-warnForUnmatchedText-didNotMatchHydratedTextInstance',
+    key: 'ssr-warnForTextDifference-didNotMatchHydratedTextInstance',
     renderServer: () => (
       <div>
         <em>
@@ -124,7 +122,8 @@ const testCases = [
     renderBrowser: () => <div onClick={'a string'} />,
   },
   {
-    key: 'ssr-warnForDeletedHydratableElement-didNotHydrateContainerInstance',
+    key:
+      'ssr-warnForDeletedHydratableInstance-didNotHydrateContainerInstance-element',
     render: () => (
       <SSRMismatchTestRootHydrate
         serverHTML={
@@ -142,7 +141,7 @@ const testCases = [
     ),
   },
   {
-    key: 'ssr-warnForDeletedHydratableElement-didNotHydrateInstance',
+    key: 'ssr-warnForDeletedHydratableInstance-didNotHydrateInstance-element',
     renderServer: () => (
       <div>
         <div>SSRMismatchTest default text</div>
@@ -156,7 +155,8 @@ const testCases = [
     ),
   },
   {
-    key: 'ssr-warnForDeletedHydratableText-didNotHydrateContainerInstance',
+    key:
+      'ssr-warnForDeletedHydratableInstance-didNotHydrateContainerInstance-text',
     render: () => (
       <SSRMismatchTestRootHydrate
         serverHTML={
@@ -169,7 +169,7 @@ const testCases = [
     ),
   },
   {
-    key: 'ssr-warnForDeletedHydratableText-didNotHydrateInstance',
+    key: 'ssr-warnForDeletedHydratableInstance-didNotHydrateInstance-text',
     renderServer: () => (
       <div>
         SSRMismatchTest server text
@@ -184,7 +184,7 @@ const testCases = [
   },
   {
     key:
-      'ssr-warnForInsertedHydratedElement-didNotFindHydratableContainerInstance',
+      'ssr-warnForInsertedHydratedInstance-didNotFindHydratableContainerInstance',
     render: () => (
       // The root element type is different (text on server, span on client), the inner text is the same.
       <SSRMismatchTestRootHydrate
@@ -194,7 +194,7 @@ const testCases = [
     ),
   },
   {
-    key: 'ssr-warnForInsertedHydratedElement-didNotFindHydratableInstance',
+    key: 'ssr-warnForInsertedHydratedInstance-didNotFindHydratableInstance',
     renderServer: () => (
       <div className="SSRMismatchTest__wrapper">
         <span className="SSRMismatchTest__1">1</span>
@@ -233,7 +233,7 @@ const testCases = [
   },
   {
     key:
-      'ssr-warnForInsertedHydratedText-didNotFindHydratableContainerTextInstance',
+      'ssr-warnForInsertedHydratedTextInstance-didNotFindHydratableContainerTextInstance',
     render: () => (
       // The root element type is different (span on server, text on client), the inner text is the same.
       <SSRMismatchTestRootHydrate
@@ -244,7 +244,7 @@ const testCases = [
   },
   {
     key:
-      'ssr-warnForInsertedHydratedText-didNotFindHydratableTextInstance-replacement',
+      'ssr-warnForInsertedHydratedTextInstance-didNotFindHydratableTextInstance-replacement',
     renderServer: () => (
       <div>
         nested{' '}
@@ -264,7 +264,7 @@ const testCases = [
   },
   {
     key:
-      'ssr-warnForInsertedHydratedText-didNotFindHydratableTextInstance-insertion',
+      'ssr-warnForInsertedHydratedTextInstance-didNotFindHydratableTextInstance-insertion',
     renderServer: () => (
       <div>
         nested{' '}

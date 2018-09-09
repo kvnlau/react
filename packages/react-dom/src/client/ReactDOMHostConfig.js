@@ -17,11 +17,7 @@ import {
   diffHydratedProperties,
   diffHydratedText,
   trapClickOnNonInteractiveElement,
-  warnForUnmatchedText,
-  warnForDeletedHydratableElement,
-  warnForDeletedHydratableText,
-  warnForInsertedHydratedElement,
-  warnForInsertedHydratedText,
+  normalizeHTMLTextOrAttributeValue,
 } from './ReactDOMComponent';
 import * as ReactInputSelection from './ReactInputSelection';
 import setTextContent from './setTextContent';
@@ -35,6 +31,7 @@ import {
   DOCUMENT_NODE,
   DOCUMENT_FRAGMENT_NODE,
 } from '../shared/HTMLNodeType';
+import omittedCloseTags from '../shared/omittedCloseTags';
 
 import type {DOMContainer} from './ReactDOM';
 
@@ -52,7 +49,8 @@ export type Props = {
 export type Container = Element | Document;
 export type Instance = Element;
 export type TextInstance = Text;
-export type HydratableInstance = Element | Text;
+export type HydratableInstance = Instance | TextInstance;
+export type HostInstance = HydratableInstance | Container | Node;
 export type PublicInstance = Element | Text;
 type HostContextDev = {
   namespace: string,
@@ -70,11 +68,6 @@ export {
   unstable_scheduleCallback as scheduleDeferredCallback,
   unstable_cancelCallback as cancelDeferredCallback,
 } from 'scheduler';
-
-let SUPPRESS_HYDRATION_WARNING;
-if (__DEV__) {
-  SUPPRESS_HYDRATION_WARNING = 'suppressHydrationWarning';
-}
 
 const STYLE = 'style';
 
@@ -453,6 +446,125 @@ export function unhideTextInstance(
 
 export const supportsHydration = true;
 
+export function getAllChildHostInstances(
+  parentInstance: HostInstance,
+): HostInstance[] {
+  return [].slice.call(parentInstance.childNodes);
+}
+
+export function getHostInstanceDisplayName(instance: HostInstance): string {
+  return instance.nodeName.toLowerCase();
+}
+
+export function getHostInstanceDisplayStringForHydrationWarning(
+  instance: HostInstance,
+  printElementOrText: (
+    instanceDisplayName: string | null,
+    instanceProps: Object | null,
+    instanceTextOrHTML: string | {__html: any} | null,
+  ) => string,
+): string {
+  const nodeType = instance.nodeType;
+  if (nodeType === COMMENT_NODE) {
+    return '<!--' + instance.textContent.replace(/-->/g, '--&gt;') + '-->';
+  } else if (nodeType === TEXT_NODE) {
+    // TODO: `instance.textContent` or `instance.nodeValue`?
+    return printElementOrText(null, null, instance.textContent);
+  } else if (nodeType === ELEMENT_NODE) {
+    let instanceProps: Object | null = null;
+    if (instance instanceof Element) {
+      instanceProps = {};
+      const attrs = instance.attributes;
+      const ic = attrs.length;
+      for (let i = 0; i < ic; ++i) {
+        instanceProps[attrs[i].name] = attrs[i].value;
+      }
+    }
+    let canHaveChildNodes = !omittedCloseTags.hasOwnProperty(
+      instance.nodeName.toLowerCase(),
+    );
+    let hasElementOrTextChildNodes = false;
+    let hasElementChildNodes = false;
+    if (canHaveChildNodes) {
+      const ic = instance.childNodes.length;
+      for (let i = 0; i < ic; ++i) {
+        if (instance.childNodes[i].nodeType === ELEMENT_NODE) {
+          hasElementOrTextChildNodes = true;
+          hasElementChildNodes = true;
+          break;
+        } else if (instance.childNodes[i].nodeType === TEXT_NODE) {
+          hasElementOrTextChildNodes = true;
+        }
+      }
+    }
+    const instanceTextOrHTML =
+      canHaveChildNodes && hasElementOrTextChildNodes
+        ? instance instanceof Element && hasElementChildNodes
+          ? {__html: instance.innerHTML}
+          : instance.textContent
+        : null;
+    return printElementOrText(
+      getHostInstanceDisplayName(instance),
+      instanceProps,
+      instanceTextOrHTML,
+    );
+  } else {
+    // In normal circumstances, we should not reach here.
+    // But while looping over all host nodes in getHydrationDiff, an unexpected nodeType can show up.
+    // Below is a safety net for when we have to display a Node that's not an element, text, or comment.
+    // For example, a PROCESSING_INSTRUCTION_NODE.
+    return (
+      '<?' +
+      instance.nodeName.replace(/>/g, '&gt;') +
+      ' ' +
+      instance.textContent.replace(/>/g, '&gt;') +
+      '?>'
+    );
+  }
+}
+
+export function getHostInstanceClosingDisplayStringForHydrationWarning(
+  instance: HostInstance,
+  printElementClosingTag: (instanceDisplayName: string) => string,
+): string {
+  return printElementClosingTag(getHostInstanceDisplayName(instance));
+}
+
+export function isHydratableInstance(instance: HostInstance): boolean {
+  // Same logic in getNextHydratableSibling, getFirstHydratableChild.
+  return instance.nodeType === ELEMENT_NODE || instance.nodeType === TEXT_NODE;
+}
+
+export function isTextInstance(instance: HostInstance): boolean {
+  return instance.nodeType === TEXT_NODE;
+}
+
+export function getTextInstanceText(textInstance: TextInstance): string {
+  return textInstance.nodeValue;
+}
+
+export function compareTextForHydrationWarning(
+  hostText: string,
+  renderedValue: string | number,
+): boolean {
+  const normalizedHostText = normalizeHTMLTextOrAttributeValue(hostText);
+  const normalizedRenderedText = normalizeHTMLTextOrAttributeValue(
+    renderedValue,
+  );
+  return normalizedHostText === normalizedRenderedText;
+}
+
+export function comparePropValueForHydrationWarning(
+  hostValue: mixed,
+  renderedValue: mixed,
+): boolean {
+  const normalizedHostValue = normalizeHTMLTextOrAttributeValue(hostValue);
+  const normalizedRenderedValue = normalizeHTMLTextOrAttributeValue(
+    renderedValue,
+  );
+  return normalizedHostValue === normalizedRenderedValue;
+}
+
 export function canHydrateInstance(
   instance: Instance | TextInstance,
   type: string,
@@ -545,96 +657,4 @@ export function hydrateTextInstance(
 ): boolean {
   precacheFiberNode(internalInstanceHandle, textInstance);
   return diffHydratedText(textInstance, text);
-}
-
-export function didNotMatchHydratedContainerTextInstance(
-  parentContainer: Container,
-  textInstance: TextInstance,
-  text: string,
-) {
-  if (__DEV__) {
-    warnForUnmatchedText(textInstance, text);
-  }
-}
-
-export function didNotMatchHydratedTextInstance(
-  parentType: string,
-  parentProps: Props,
-  parentInstance: Instance,
-  textInstance: TextInstance,
-  text: string,
-) {
-  if (__DEV__ && parentProps[SUPPRESS_HYDRATION_WARNING] !== true) {
-    warnForUnmatchedText(textInstance, text);
-  }
-}
-
-export function didNotHydrateContainerInstance(
-  parentContainer: Container,
-  instance: Instance | TextInstance,
-) {
-  if (__DEV__) {
-    if (instance.nodeType === ELEMENT_NODE) {
-      warnForDeletedHydratableElement(parentContainer, (instance: any));
-    } else {
-      warnForDeletedHydratableText(parentContainer, (instance: any));
-    }
-  }
-}
-
-export function didNotHydrateInstance(
-  parentType: string,
-  parentProps: Props,
-  parentInstance: Instance,
-  instance: Instance | TextInstance,
-) {
-  if (__DEV__ && parentProps[SUPPRESS_HYDRATION_WARNING] !== true) {
-    if (instance.nodeType === ELEMENT_NODE) {
-      warnForDeletedHydratableElement(parentInstance, (instance: any));
-    } else {
-      warnForDeletedHydratableText(parentInstance, (instance: any));
-    }
-  }
-}
-
-export function didNotFindHydratableContainerInstance(
-  parentContainer: Container,
-  type: string,
-  props: Props,
-) {
-  if (__DEV__) {
-    warnForInsertedHydratedElement(parentContainer, type, props);
-  }
-}
-
-export function didNotFindHydratableContainerTextInstance(
-  parentContainer: Container,
-  text: string,
-) {
-  if (__DEV__) {
-    warnForInsertedHydratedText(parentContainer, text);
-  }
-}
-
-export function didNotFindHydratableInstance(
-  parentType: string,
-  parentProps: Props,
-  parentInstance: Instance,
-  type: string,
-  props: Props,
-) {
-  if (__DEV__ && parentProps[SUPPRESS_HYDRATION_WARNING] !== true) {
-    warnForInsertedHydratedElement(parentInstance, type, props);
-  }
-}
-
-export function didNotFindHydratableTextInstance(
-  parentType: string,
-  parentProps: Props,
-  parentInstance: Instance,
-  text: string,
-) {
-  if (__DEV__ && parentProps[SUPPRESS_HYDRATION_WARNING] !== true) {
-    warnForInsertedHydratedText(parentInstance, text);
-  }
 }

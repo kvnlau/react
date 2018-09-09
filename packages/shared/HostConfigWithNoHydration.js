@@ -22,6 +22,14 @@ function shim(...args: any) {
 }
 
 // Hydration (when unsupported)
+export const getAllChildHostInstances = shim;
+export const getHostInstanceDisplayStringForHydrationWarning = shim;
+export const getHostInstanceClosingDisplayStringForHydrationWarning = shim;
+export const isHydratableInstance = shim;
+export const isTextInstance = shim;
+export const getTextInstanceText = shim;
+export const compareTextForHydrationWarning = shim;
+export const comparePropValueForHydrationWarning = shim;
 export const supportsHydration = false;
 export const canHydrateInstance = shim;
 export const canHydrateTextInstance = shim;
@@ -29,11 +37,3 @@ export const getNextHydratableSibling = shim;
 export const getFirstHydratableChild = shim;
 export const hydrateInstance = shim;
 export const hydrateTextInstance = shim;
-export const didNotMatchHydratedContainerTextInstance = shim;
-export const didNotMatchHydratedTextInstance = shim;
-export const didNotHydrateContainerInstance = shim;
-export const didNotHydrateInstance = shim;
-export const didNotFindHydratableContainerInstance = shim;
-export const didNotFindHydratableContainerTextInstance = shim;
-export const didNotFindHydratableInstance = shim;
-export const didNotFindHydratableTextInstance = shim;

@@ -30,6 +30,7 @@ export opaque type Container = mixed; // eslint-disable-line no-undef
 export opaque type Instance = mixed; // eslint-disable-line no-undef
 export opaque type TextInstance = mixed; // eslint-disable-line no-undef
 export opaque type HydratableInstance = mixed; // eslint-disable-line no-undef
+export opaque type HostInstance = mixed; // eslint-disable-line no-undef
 export opaque type PublicInstance = mixed; // eslint-disable-line no-undef
 export opaque type HostContext = mixed; // eslint-disable-line no-undef
 export opaque type UpdatePayload = mixed; // eslint-disable-line no-undef
@@ -99,24 +100,21 @@ export const createHiddenTextInstance = $$$hostConfig.createHiddenTextInstance;
 //     Hydration
 //     (optional)
 // -------------------
+export const getAllChildHostInstances = $$$hostConfig.getAllChildHostInstances;
+export const getHostInstanceDisplayStringForHydrationWarning =
+  $$$hostConfig.getHostInstanceDisplayStringForHydrationWarning;
+export const getHostInstanceClosingDisplayStringForHydrationWarning =
+  $$$hostConfig.getHostInstanceClosingDisplayStringForHydrationWarning;
+export const isHydratableInstance = $$$hostConfig.isHydratableInstance;
+export const isTextInstance = $$$hostConfig.isTextInstance;
+export const getTextInstanceText = $$$hostConfig.getTextInstanceText;
+export const compareTextForHydrationWarning =
+  $$$hostConfig.compareTextForHydrationWarning;
+export const comparePropValueForHydrationWarning =
+  $$$hostConfig.comparePropValueForHydrationWarning;
 export const canHydrateInstance = $$$hostConfig.canHydrateInstance;
 export const canHydrateTextInstance = $$$hostConfig.canHydrateTextInstance;
 export const getNextHydratableSibling = $$$hostConfig.getNextHydratableSibling;
 export const getFirstHydratableChild = $$$hostConfig.getFirstHydratableChild;
 export const hydrateInstance = $$$hostConfig.hydrateInstance;
 export const hydrateTextInstance = $$$hostConfig.hydrateTextInstance;
-export const didNotMatchHydratedContainerTextInstance =
-  $$$hostConfig.didNotMatchHydratedContainerTextInstance;
-export const didNotMatchHydratedTextInstance =
-  $$$hostConfig.didNotMatchHydratedTextInstance;
-export const didNotHydrateContainerInstance =
-  $$$hostConfig.didNotHydrateContainerInstance;
-export const didNotHydrateInstance = $$$hostConfig.didNotHydrateInstance;
-export const didNotFindHydratableContainerInstance =
-  $$$hostConfig.didNotFindHydratableContainerInstance;
-export const didNotFindHydratableContainerTextInstance =
-  $$$hostConfig.didNotFindHydratableContainerTextInstance;
-export const didNotFindHydratableInstance =
-  $$$hostConfig.didNotFindHydratableInstance;
-export const didNotFindHydratableTextInstance =
-  $$$hostConfig.didNotFindHydratableTextInstance;
