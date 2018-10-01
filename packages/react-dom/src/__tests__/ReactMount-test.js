@@ -1065,7 +1065,7 @@ describe('ReactMount', () => {
       // TODO: Currently, the special characters in the JSX string output are not escaped, the output looks invalid.
       'Warning: Expected server HTML to contain a matching <span> in <div>.\n\n' +
         '  <div data-reactroot="">\n' +
-        "-   {'SSRMismatchTest special characters: '\"\t\n'}\n" +
+        "-   {'SSRMismatchTest special characters: \\'\"\\t\\n'}\n" +
         '+   <span />\n' +
         '  </div>\n\n' +
         '    in span (at **)\n' +
@@ -1095,7 +1095,7 @@ describe('ReactMount', () => {
       'Warning: Expected server HTML to contain a matching <span> in <div>.\n\n' +
         `  <div data-ssr-mismatch-attribute-with-special-characters={'"'} data-reactroot="">\n` +
         '-   <div>SSRMismatchTest text</div>\n' +
-        "+   <span>{' — <div>'}</span>\n" +
+        "+   <span>{'\\xa0\\u2014 <div>'}</span>\n" +
         '  </div>\n\n' +
         '    in span (at **)\n' +
         '    in div (at **)',

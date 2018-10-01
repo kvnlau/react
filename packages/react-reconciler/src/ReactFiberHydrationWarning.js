@@ -92,6 +92,44 @@ function clipStringWithEllipsis(str: string, clipAtLength: number): string {
   );
 }
 
+function escapeNonPrintableCharacters(str: string, quote: "'" | '"'): string {
+  return str.replace(/[\s\S]/g, character => {
+    switch (character) {
+      case quote:
+        return '\\' + character;
+      case '\n':
+        return '\\n';
+      case '\t':
+        return '\\t';
+      default: {
+        const charCode = character.charCodeAt(0);
+        // Do not escape if the character is within the ASCII printable range:
+        if (charCode >= 0x20 && charCode <= 0x7e) {
+          return character;
+        }
+        const charCodeHex = charCode.toString(16);
+        const longhand = charCodeHex.length > 2;
+        return (
+          '\\' +
+          (longhand ? 'u' : 'x') +
+          ('0000' + charCodeHex).slice(longhand ? -4 : -2)
+        );
+      }
+    }
+  });
+}
+
+function printQuotedStringValue(str: string, quote: "'" | '"'): string {
+  return (
+    quote +
+    escapeNonPrintableCharacters(
+      clipStringWithEllipsis(str, PRINT_MAX_STRING_LENGTH),
+      quote,
+    ) +
+    quote
+  );
+}
+
 function printValue(value: mixed): string {
   try {
     if (value === null) {
@@ -99,10 +137,9 @@ function printValue(value: mixed): string {
     } else if (value === undefined) {
       return 'undefined';
     } else if (typeof value === 'string') {
-      return "'" + clipStringWithEllipsis(value, PRINT_MAX_STRING_LENGTH) + "'";
+      return printQuotedStringValue(value, "'");
     } else if (Array.isArray(value)) {
       let ret = '[';
-
       const ic = value.length;
       for (let i = 0; i < ic; ++i) {
         ret += i > 0 ? ', ' : '';
@@ -143,44 +180,6 @@ function printValue(value: mixed): string {
   } catch (ex) {
     return '...';
   }
-}
-
-function escapeNonPrintableCharacters(str: string, quote: "'" | '"'): string {
-  return str.replace(/[\s\S]/g, character => {
-    switch (character) {
-      case quote:
-        return '\\' + character;
-      case '\n':
-        return '\\n';
-      case '\t':
-        return '\\t';
-      default: {
-        const charCode = character.charCodeAt(0);
-        // Do not escape if the character is within the ASCII printable range:
-        if (charCode >= 0x20 && charCode <= 0x7e) {
-          return character;
-        }
-        const charCodeHex = charCode.toString(16);
-        const longhand = charCodeHex.length > 2;
-        return (
-          '\\' +
-          (longhand ? 'u' : 'x') +
-          ('0000' + charCodeHex).slice(longhand ? -4 : -2)
-        );
-      }
-    }
-  });
-}
-
-function printQuotedStringValue(str: string, quote: "'" | '"'): string {
-  return (
-    quote +
-    escapeNonPrintableCharacters(
-      clipStringWithEllipsis(str, PRINT_MAX_STRING_LENGTH),
-      quote,
-    ) +
-    quote
-  );
 }
 
 function printCurlyValue(value: mixed): string {
