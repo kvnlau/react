@@ -624,7 +624,7 @@ function warnForExtraAttributes(attributeNames: Set<string>) {
     names.push(name);
   });
   // TODO: As we're here in the terminology of universal hydration, should we stop saying 'from the server'?
-  warning(false, 'Extra attributes from the server: %s', names);
+  warning(false, 'Extra attributes from the server: %s', names.join(', '));
 }
 
 function warnForDeletedHydratableInstance(

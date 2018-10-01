@@ -552,7 +552,7 @@ describe('ReactMount', () => {
         div,
       ),
     ).toWarnDev(
-      'Warning: Extra attributes from the server: data-ssr-extra-prop,data-ssr-extra-prop-2\n' +
+      'Warning: Extra attributes from the server: data-ssr-extra-prop, data-ssr-extra-prop-2\n' +
         '    in div (at **)',
     );
   });
