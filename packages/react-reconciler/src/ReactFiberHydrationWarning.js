@@ -12,24 +12,29 @@ import warning from 'shared/warning';
 import getComponentName from 'shared/getComponentName';
 
 import type {Fiber} from './ReactFiber';
-import type {
-  Container,
-  HydratableInstance,
-  HostInstance,
-  Instance,
-  TextInstance,
-} from './ReactFiberHostConfig';
+import type {Container, Instance, TextInstance} from './ReactFiberHostConfig';
 
 import {
-  getAllChildHostInstances,
-  getHostInstanceDisplayStringForHydrationWarning,
-  getHostInstanceClosingDisplayStringForHydrationWarning,
-  isHydratableInstance,
+  getNextHydratableSibling,
+  getFirstHydratableChild,
+  getHostInstanceDisplayName,
+  getHostInstanceProps,
   isTextInstance,
   getTextInstanceText,
   compareTextForHydrationWarning,
   comparePropValueForHydrationWarning,
 } from './ReactFiberHostConfig';
+
+const REACT_SPECIFIC_PROPS = {
+  key: true,
+  ref: true,
+  __self: true,
+  __source: true,
+  children: null,
+  dangerouslySetInnerHTML: null,
+  suppressContentEditableWarning: null,
+  suppressHydrationWarning: null,
+};
 
 let didWarnInvalidHydration = false;
 let SUPPRESS_HYDRATION_WARNING;
@@ -46,6 +51,15 @@ const PRINT_MAX_ARRAY_ITEMS = 3;
 const PRINT_MAX_OBJECT_ITEMS = 3;
 // TODO: Should PRINT_MAX_PROP_ITEMS remain hardcoded?
 const PRINT_MAX_PROP_ITEMS = 3;
+
+type DangerouslySetInnerHTMLString = {
+  __html: string,
+};
+
+const PRINT_ELEMENT_MODE_DEFAULT: 0b0000 = 0b0000;
+const PRINT_ELEMENT_MODE_OPENING_TAG_ONLY: 0b0001 = 0b0001;
+const PRINT_CHILDREN_VALUE_MODE_DEFAULT: 0b0010 = 0b0010;
+const PRINT_CHILDREN_VALUE_MODE_RAW: 0b0100 = 0b0100;
 
 function isReactElement(value: mixed): boolean %checks {
   return (
@@ -67,8 +81,8 @@ function printReactElement(value: Object): string {
         instanceDisplayName,
         instanceProps,
         null,
-        false,
-        false,
+        PRINT_ELEMENT_MODE_DEFAULT,
+        PRINT_CHILDREN_VALUE_MODE_DEFAULT,
       );
 }
 
@@ -130,17 +144,6 @@ function printValue(value: mixed): string {
     return '...';
   }
 }
-
-const REACT_SPECIFIC_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true,
-  children: null,
-  dangerouslySetInnerHTML: null,
-  suppressContentEditableWarning: null,
-  suppressHydrationWarning: null,
-};
 
 function escapeNonPrintableCharacters(str: string, quote: "'" | '"'): string {
   return str.replace(/[\s\S]/g, character => {
@@ -215,18 +218,16 @@ function printCurlyOrQuotedStringValue(value: mixed): string {
   }
 }
 
-type DangerouslySetInnerHTMLString = {
-  __html: string,
-};
-
 function printChildrenValueInner(
   children: mixed,
-  withinParent?: boolean,
+  printChildrenMode:
+    | typeof PRINT_CHILDREN_VALUE_MODE_DEFAULT
+    | typeof PRINT_CHILDREN_VALUE_MODE_RAW,
 ): string {
-  if (withinParent && children === null) {
+  if (printChildrenMode & PRINT_CHILDREN_VALUE_MODE_RAW && children === null) {
     return '';
   } else if (
-    withinParent &&
+    printChildrenMode & PRINT_CHILDREN_VALUE_MODE_RAW &&
     typeof children === 'string' &&
     shouldPrintStringAsRawUnescapedText(children)
   ) {
@@ -241,7 +242,12 @@ function printChildrenValueInner(
   }
 }
 
-function printChildrenValue(children: mixed, withinParent?: boolean): string {
+function printChildrenValue(
+  children: mixed,
+  printChildrenMode:
+    | typeof PRINT_CHILDREN_VALUE_MODE_DEFAULT
+    | typeof PRINT_CHILDREN_VALUE_MODE_RAW,
+): string {
   if (Array.isArray(children)) {
     let ic = children.length;
     let isAllStrings = ic > 0;
@@ -255,11 +261,11 @@ function printChildrenValue(children: mixed, withinParent?: boolean): string {
       return printCurlyValue(children);
     } else {
       return children
-        .map(child => printChildrenValueInner(child, withinParent))
+        .map(child => printChildrenValueInner(child, printChildrenMode))
         .join('');
     }
   } else {
-    return printChildrenValueInner(children, withinParent);
+    return printChildrenValueInner(children, printChildrenMode);
   }
 }
 
@@ -319,14 +325,20 @@ function printElementChildren(
   instanceTextOrHTML: string | DangerouslySetInnerHTMLString | null,
 ) {
   if (instanceProps && instanceProps.children != null) {
-    return printChildrenValue(instanceProps.children, true);
+    return printChildrenValue(
+      instanceProps.children,
+      PRINT_CHILDREN_VALUE_MODE_RAW,
+    );
   } else if (
     instanceProps &&
     isDangerouslySetInnerHTMLString(instanceProps.dangerouslySetInnerHTML)
   ) {
     return printChildrenHTML(instanceProps.dangerouslySetInnerHTML);
   } else if (typeof instanceTextOrHTML === 'string') {
-    return printChildrenValue(instanceTextOrHTML, true);
+    return printChildrenValue(
+      instanceTextOrHTML,
+      PRINT_CHILDREN_VALUE_MODE_RAW,
+    );
   } else if (isDangerouslySetInnerHTMLString(instanceTextOrHTML)) {
     return printChildrenHTML(instanceTextOrHTML);
   } else if (instanceTextOrHTML != null) {
@@ -340,10 +352,17 @@ function printElementOrText(
   instanceDisplayName: string | null,
   instanceProps: Object | null,
   instanceTextOrHTML: string | DangerouslySetInnerHTMLString | null,
-  openingTagOnly?: boolean,
-  withinParent?: boolean,
+  printElementMode:
+    | typeof PRINT_ELEMENT_MODE_DEFAULT
+    | typeof PRINT_ELEMENT_MODE_OPENING_TAG_ONLY,
+  printChildrenMode:
+    | typeof PRINT_CHILDREN_VALUE_MODE_DEFAULT
+    | typeof PRINT_CHILDREN_VALUE_MODE_RAW,
 ): string {
-  if (instanceDisplayName !== null && openingTagOnly) {
+  if (
+    instanceDisplayName !== null &&
+    printElementMode & PRINT_ELEMENT_MODE_OPENING_TAG_ONLY
+  ) {
     return printElementOpeningTag(instanceDisplayName, instanceProps, false);
   } else if (instanceDisplayName !== null) {
     const printedChildren = printElementChildren(
@@ -362,58 +381,84 @@ function printElementOrText(
   } else if (isDangerouslySetInnerHTMLString(instanceTextOrHTML)) {
     return printChildrenHTML(instanceTextOrHTML);
   } else {
-    return printChildrenValue(instanceTextOrHTML, withinParent);
+    return printChildrenValue(instanceTextOrHTML, printChildrenMode);
   }
 }
 
-function printElementOrTextForHydrationDiff(
-  instanceDisplayName: string | null,
-  instanceProps: Object | null,
-  instanceTextOrHTML: string | DangerouslySetInnerHTMLString | null,
-): string {
-  return printElementOrText(
-    instanceDisplayName,
-    instanceProps,
-    instanceTextOrHTML,
-    false,
-    // TODO: Should we print curly values for top-level text nodes (`false`) or raw text (`true`).
-    false,
-  );
-}
-
-function printElementOrTextForHydrationDiffOpening(
-  instanceDisplayName: string | null,
-  instanceProps: Object | null,
-  instanceTextOrHTML: string | DangerouslySetInnerHTMLString | null,
-): string {
-  return printElementOrText(
-    instanceDisplayName,
-    instanceProps,
-    instanceTextOrHTML,
-    true,
-  );
-}
-
-function printElementOrTextForHydrationWarningMessage(
-  instanceDisplayName: string | null,
-  instanceProps: Object | null,
-  instanceTextOrHTML: string | DangerouslySetInnerHTMLString | null,
-): string {
-  return printElementOrText(
-    instanceDisplayName,
-    null,
-    instanceTextOrHTML,
-    true,
-  );
-}
-
 function getHostInstanceDisplayStringForHydrationWarningMessage(
-  instance: HostInstance,
+  instanceOrTextInstance: Container | Instance | TextInstance,
 ) {
-  return getHostInstanceDisplayStringForHydrationWarning(
-    instance,
-    printElementOrTextForHydrationWarningMessage,
-  );
+  if (isTextInstance(instanceOrTextInstance)) {
+    const textInstance: TextInstance = (instanceOrTextInstance: any);
+    return printElementOrText(
+      null,
+      null,
+      getTextInstanceText(textInstance),
+      PRINT_ELEMENT_MODE_OPENING_TAG_ONLY,
+      PRINT_CHILDREN_VALUE_MODE_DEFAULT,
+    );
+  } else {
+    const instance: Container | Instance = (instanceOrTextInstance: any);
+    return printElementOrText(
+      getHostInstanceDisplayName(instance),
+      {},
+      null,
+      PRINT_ELEMENT_MODE_OPENING_TAG_ONLY,
+      PRINT_CHILDREN_VALUE_MODE_DEFAULT,
+    );
+  }
+}
+
+function printHostInstance(
+  instanceOrTextInstance: Container | Instance | TextInstance,
+  printChildrenMode:
+    | typeof PRINT_CHILDREN_VALUE_MODE_DEFAULT
+    | typeof PRINT_CHILDREN_VALUE_MODE_RAW,
+) {
+  let ret = '';
+  if (isTextInstance(instanceOrTextInstance)) {
+    const textInstance: TextInstance = (instanceOrTextInstance: any);
+    ret += printElementOrText(
+      null,
+      null,
+      getTextInstanceText(textInstance),
+      PRINT_ELEMENT_MODE_DEFAULT,
+      printChildrenMode,
+    );
+  } else {
+    const instance: Container | Instance = (instanceOrTextInstance: any);
+    const instanceDisplayName = getHostInstanceDisplayName(instance);
+    const instanceProps = getHostInstanceProps(instance);
+    let nextHydratableInstance = getFirstHydratableChild(instance);
+    if (nextHydratableInstance) {
+      ret += printElementOrText(
+        instanceDisplayName,
+        instanceProps,
+        null,
+        PRINT_ELEMENT_MODE_OPENING_TAG_ONLY,
+        printChildrenMode,
+      );
+      while (nextHydratableInstance) {
+        ret += printHostInstance(
+          nextHydratableInstance,
+          PRINT_CHILDREN_VALUE_MODE_RAW,
+        );
+        nextHydratableInstance = getNextHydratableSibling(
+          nextHydratableInstance,
+        );
+      }
+      ret += printElementClosingTag(instanceDisplayName);
+    } else {
+      ret += printElementOrText(
+        instanceDisplayName,
+        instanceProps,
+        null,
+        PRINT_ELEMENT_MODE_DEFAULT,
+        printChildrenMode,
+      );
+    }
+  }
+  return ret;
 }
 
 export function findHydrationWarningHostInstanceIndex(
@@ -450,7 +495,7 @@ export function findHydrationWarningHostInstanceIndex(
 }
 
 function getHydrationDiff(
-  parentInstance: HostInstance,
+  parentInstance: Container | Instance,
   childInstanceDeletedIndex: number,
   childInstanceInsertedIndex: number,
   insertedInstanceDisplayName: string | null,
@@ -465,9 +510,13 @@ function getHydrationDiff(
   const DIFF_UNCHANGED = '\n  ';
   ret +=
     DIFF_UNCHANGED +
-    getHostInstanceDisplayStringForHydrationWarning(
-      parentInstance,
-      printElementOrTextForHydrationDiffOpening,
+    printElementOrText(
+      getHostInstanceDisplayName(parentInstance),
+      getHostInstanceProps(parentInstance),
+      null,
+      PRINT_ELEMENT_MODE_OPENING_TAG_ONLY,
+      // TODO: Should we print curly values for top-level text nodes or raw text.
+      PRINT_CHILDREN_VALUE_MODE_DEFAULT,
     );
   let inserted = false;
   const insert = () => {
@@ -477,60 +526,48 @@ function getHydrationDiff(
         ret +=
           DIFF_ADDED +
           INDENT +
-          printElementOrTextForHydrationDiff(
+          printElementOrText(
             insertedInstanceDisplayName,
             insertedInstanceProps,
             insertedText,
+            PRINT_ELEMENT_MODE_DEFAULT,
+            // TODO: Should we print curly values for top-level text nodes or raw text.
+            PRINT_CHILDREN_VALUE_MODE_DEFAULT,
           );
       }
     }
   };
-  const childHostInstances = getAllChildHostInstances(parentInstance);
-  const ic = childHostInstances.length;
-  let hydrationSkippedCount = 0;
-  for (let i = 0; i < ic; ++i) {
-    const hostInstance = childHostInstances[i];
-    if (hostInstance && !isHydratableInstance(hostInstance)) {
-      // Hydration skips non-hydratable nodeTypes but we display them to provide more contextual info.
-      ret +=
-        DIFF_UNCHANGED +
-        INDENT +
-        getHostInstanceDisplayStringForHydrationWarning(
-          hostInstance,
-          printElementOrTextForHydrationDiff,
-        );
-      ++hydrationSkippedCount;
-      continue;
-    }
-    if (i - hydrationSkippedCount === childInstanceDeletedIndex) {
+  let nextHydratableInstance = getFirstHydratableChild(parentInstance);
+  let index = 0;
+  while (nextHydratableInstance) {
+    if (index === childInstanceDeletedIndex) {
       ret +=
         DIFF_REMOVED +
         INDENT +
-        getHostInstanceDisplayStringForHydrationWarning(
-          hostInstance,
-          printElementOrTextForHydrationDiff,
+        printHostInstance(
+          nextHydratableInstance,
+          PRINT_CHILDREN_VALUE_MODE_DEFAULT,
         );
     } else {
       ret +=
         DIFF_UNCHANGED +
         INDENT +
-        getHostInstanceDisplayStringForHydrationWarning(
-          hostInstance,
-          printElementOrTextForHydrationDiff,
+        printHostInstance(
+          nextHydratableInstance,
+          PRINT_CHILDREN_VALUE_MODE_DEFAULT,
         );
     }
-    if (i - hydrationSkippedCount === childInstanceInsertedIndex) {
+    if (index === childInstanceInsertedIndex) {
       insert();
     }
+    ++index;
+    nextHydratableInstance = getNextHydratableSibling(nextHydratableInstance);
   }
   insert();
   // TODO: Cannot tell if more sibling React elements were expected to be hydrated after the current one.
   ret +=
     DIFF_UNCHANGED +
-    getHostInstanceClosingDisplayStringForHydrationWarning(
-      parentInstance,
-      printElementClosingTag,
-    );
+    printElementClosingTag(getHostInstanceDisplayName(parentInstance));
   // Append '\n' for readability to separate the diff from the component stack that follows.
   ret += '\n';
   return ret;
@@ -592,24 +629,36 @@ function warnForExtraAttributes(attributeNames: Set<string>) {
 }
 
 function warnForDeletedHydratableInstance(
-  parentContainer: HostInstance,
-  child: HydratableInstance,
+  parentContainer: Container | Instance,
+  child: Instance | TextInstance,
 ) {
   if (__DEV__) {
     if (didWarnInvalidHydration) {
       return;
     }
     didWarnInvalidHydration = true;
+    let nextHydratableInstance = getFirstHydratableChild(parentContainer);
+    let childInstanceDeletedIndex = -1;
+    let index = 0;
+    while (nextHydratableInstance) {
+      if (nextHydratableInstance === child) {
+        childInstanceDeletedIndex = index;
+        break;
+      }
+      ++index;
+      nextHydratableInstance = getNextHydratableSibling(nextHydratableInstance);
+    }
     // TODO: As we're here in the terminology of universal hydration, should we stop saying 'server HTML'?
     if (isTextInstance(child)) {
+      const textInstance: TextInstance = (child: any);
       warning(
         false,
         'Did not expect server HTML to contain the text node %s in %s.%s',
-        getHostInstanceDisplayStringForHydrationWarningMessage(child),
+        getHostInstanceDisplayStringForHydrationWarningMessage(textInstance),
         getHostInstanceDisplayStringForHydrationWarningMessage(parentContainer),
         getHydrationDiff(
           parentContainer,
-          getAllChildHostInstances(parentContainer).indexOf(child),
+          childInstanceDeletedIndex,
           -1,
           null,
           null,
@@ -617,14 +666,15 @@ function warnForDeletedHydratableInstance(
         ),
       );
     } else {
+      const instance: Instance = (child: any);
       warning(
         false,
         'Did not expect server HTML to contain a %s in %s.%s',
-        getHostInstanceDisplayStringForHydrationWarningMessage(child),
+        getHostInstanceDisplayStringForHydrationWarningMessage(instance),
         getHostInstanceDisplayStringForHydrationWarningMessage(parentContainer),
         getHydrationDiff(
           parentContainer,
-          getAllChildHostInstances(parentContainer).indexOf(child),
+          childInstanceDeletedIndex,
           -1,
           null,
           null,
@@ -636,7 +686,7 @@ function warnForDeletedHydratableInstance(
 }
 
 function warnForInsertedHydratedInstance(
-  parentContainer: HostInstance,
+  parentContainer: Container | Instance,
   tag: string,
   props: Object,
   hydrationWarningHostInstanceIndex: number,
@@ -651,7 +701,13 @@ function warnForInsertedHydratedInstance(
     warning(
       false,
       'Expected server HTML to contain a matching %s in %s.%s',
-      printElementOrTextForHydrationWarningMessage(tag, props, null),
+      printElementOrText(
+        tag,
+        props,
+        null,
+        PRINT_ELEMENT_MODE_OPENING_TAG_ONLY,
+        PRINT_CHILDREN_VALUE_MODE_DEFAULT,
+      ),
       getHostInstanceDisplayStringForHydrationWarningMessage(parentContainer),
       getHydrationDiff(
         parentContainer,
@@ -668,7 +724,7 @@ function warnForInsertedHydratedInstance(
 }
 
 function warnForInsertedHydratedTextInstance(
-  parentContainer: HostInstance,
+  parentContainer: Container | Instance,
   text: string,
   hydrationWarningHostInstanceIndex: number,
   hydrationWarningHostInstanceIsReplaced: boolean,
@@ -763,7 +819,7 @@ export function didNotMatchHydratedPropsHostInstanceHasExtraAttributes(
 
 export function didNotHydrateContainerInstance(
   parentContainer: Container,
-  instance: HydratableInstance,
+  instance: Instance | TextInstance,
 ) {
   if (__DEV__) {
     warnForDeletedHydratableInstance(parentContainer, instance);
@@ -774,7 +830,7 @@ export function didNotHydrateInstance(
   parentType: string,
   parentProps: Object,
   parentInstance: Instance,
-  instance: HydratableInstance,
+  instance: Instance | TextInstance,
 ) {
   if (__DEV__ && parentProps[SUPPRESS_HYDRATION_WARNING] !== true) {
     warnForDeletedHydratableInstance(parentInstance, instance);

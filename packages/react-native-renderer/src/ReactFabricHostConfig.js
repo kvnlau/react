@@ -61,8 +61,6 @@ export type Instance = {
 export type TextInstance = {
   node: Node,
 };
-export type HydratableInstance = Instance | TextInstance;
-export type HostInstance = HydratableInstance | Container;
 export type PublicInstance = ReactFabricHostComponent;
 export type ChildSet = Object;
 export type HostContext = $ReadOnly<{|

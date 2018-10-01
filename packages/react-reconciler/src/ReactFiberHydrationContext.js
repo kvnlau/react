@@ -11,7 +11,6 @@ import type {Fiber} from './ReactFiber';
 import type {
   Instance,
   TextInstance,
-  HydratableInstance,
   Container,
   HostContext,
 } from './ReactFiberHostConfig';
@@ -46,7 +45,7 @@ import {
 // The deepest Fiber on the stack involved in a hydration context.
 // This may have been an insertion or a hydration.
 let hydrationParentFiber: null | Fiber = null;
-let nextHydratableInstance: null | HydratableInstance = null;
+let nextHydratableInstance: null | Instance | TextInstance = null;
 let isHydrating: boolean = false;
 
 function enterHydrationState(fiber: Fiber): boolean {
@@ -63,7 +62,7 @@ function enterHydrationState(fiber: Fiber): boolean {
 
 function deleteHydratableInstance(
   returnFiber: Fiber,
-  instance: HydratableInstance,
+  instance: Instance | TextInstance,
 ) {
   if (__DEV__) {
     switch (returnFiber.tag) {

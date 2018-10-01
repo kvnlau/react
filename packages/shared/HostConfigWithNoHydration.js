@@ -22,10 +22,8 @@ function shim(...args: any) {
 }
 
 // Hydration (when unsupported)
-export const getAllChildHostInstances = shim;
-export const getHostInstanceDisplayStringForHydrationWarning = shim;
-export const getHostInstanceClosingDisplayStringForHydrationWarning = shim;
-export const isHydratableInstance = shim;
+export const getHostInstanceDisplayName = shim;
+export const getHostInstanceProps = shim;
 export const isTextInstance = shim;
 export const getTextInstanceText = shim;
 export const compareTextForHydrationWarning = shim;

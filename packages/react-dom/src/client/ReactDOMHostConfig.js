@@ -31,7 +31,6 @@ import {
   DOCUMENT_NODE,
   DOCUMENT_FRAGMENT_NODE,
 } from '../shared/HTMLNodeType';
-import omittedCloseTags from '../shared/omittedCloseTags';
 
 import type {DOMContainer} from './ReactDOM';
 
@@ -49,8 +48,6 @@ export type Props = {
 export type Container = Element | Document;
 export type Instance = Element;
 export type TextInstance = Text;
-export type HydratableInstance = Instance | TextInstance;
-export type HostInstance = HydratableInstance | Container | Node;
 export type PublicInstance = Element | Text;
 type HostContextDev = {
   namespace: string,
@@ -446,31 +443,16 @@ export function unhideTextInstance(
 
 export const supportsHydration = true;
 
-export function getAllChildHostInstances(
-  parentInstance: HostInstance,
-): HostInstance[] {
-  return [].slice.call(parentInstance.childNodes);
-}
-
-export function getHostInstanceDisplayName(instance: HostInstance): string {
+export function getHostInstanceDisplayName(
+  instance: Container | Instance,
+): string {
   return instance.nodeName.toLowerCase();
 }
 
-export function getHostInstanceDisplayStringForHydrationWarning(
-  instance: HostInstance,
-  printElementOrText: (
-    instanceDisplayName: string | null,
-    instanceProps: Object | null,
-    instanceTextOrHTML: string | {__html: any} | null,
-  ) => string,
-): string {
-  const nodeType = instance.nodeType;
-  if (nodeType === COMMENT_NODE) {
-    return '<!--' + instance.textContent.replace(/-->/g, '--&gt;') + '-->';
-  } else if (nodeType === TEXT_NODE) {
-    // TODO: `instance.textContent` or `instance.nodeValue`?
-    return printElementOrText(null, null, instance.textContent);
-  } else if (nodeType === ELEMENT_NODE) {
+export function getHostInstanceProps(
+  instance: Container | Instance,
+): Object | null {
+  if (instance.nodeType === ELEMENT_NODE) {
     let instanceProps: Object | null = null;
     if (instance instanceof Element) {
       instanceProps = {};
@@ -480,62 +462,14 @@ export function getHostInstanceDisplayStringForHydrationWarning(
         instanceProps[attrs[i].name] = attrs[i].value;
       }
     }
-    let canHaveChildNodes = !omittedCloseTags.hasOwnProperty(
-      instance.nodeName.toLowerCase(),
-    );
-    let hasElementOrTextChildNodes = false;
-    let hasElementChildNodes = false;
-    if (canHaveChildNodes) {
-      const ic = instance.childNodes.length;
-      for (let i = 0; i < ic; ++i) {
-        if (instance.childNodes[i].nodeType === ELEMENT_NODE) {
-          hasElementOrTextChildNodes = true;
-          hasElementChildNodes = true;
-          break;
-        } else if (instance.childNodes[i].nodeType === TEXT_NODE) {
-          hasElementOrTextChildNodes = true;
-        }
-      }
-    }
-    const instanceTextOrHTML =
-      canHaveChildNodes && hasElementOrTextChildNodes
-        ? instance instanceof Element && hasElementChildNodes
-          ? {__html: instance.innerHTML}
-          : instance.textContent
-        : null;
-    return printElementOrText(
-      getHostInstanceDisplayName(instance),
-      instanceProps,
-      instanceTextOrHTML,
-    );
-  } else {
-    // In normal circumstances, we should not reach here.
-    // But while looping over all host nodes in getHydrationDiff, an unexpected nodeType can show up.
-    // Below is a safety net for when we have to display a Node that's not an element, text, or comment.
-    // For example, a PROCESSING_INSTRUCTION_NODE.
-    return (
-      '<?' +
-      instance.nodeName.replace(/>/g, '&gt;') +
-      ' ' +
-      instance.textContent.replace(/>/g, '&gt;') +
-      '?>'
-    );
+    return instanceProps;
   }
+  return null;
 }
 
-export function getHostInstanceClosingDisplayStringForHydrationWarning(
-  instance: HostInstance,
-  printElementClosingTag: (instanceDisplayName: string) => string,
-): string {
-  return printElementClosingTag(getHostInstanceDisplayName(instance));
-}
-
-export function isHydratableInstance(instance: HostInstance): boolean {
-  // Same logic in getNextHydratableSibling, getFirstHydratableChild.
-  return instance.nodeType === ELEMENT_NODE || instance.nodeType === TEXT_NODE;
-}
-
-export function isTextInstance(instance: HostInstance): boolean {
+export function isTextInstance(
+  instance: Container | Instance | TextInstance,
+): boolean {
   return instance.nodeType === TEXT_NODE;
 }
 

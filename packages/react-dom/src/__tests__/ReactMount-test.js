@@ -313,7 +313,6 @@ describe('ReactMount', () => {
       'Warning: Expected server HTML to contain a matching <h2> in <div>.\n\n' +
         '  <div>\n' +
         "    {'nested'}\n" +
-        '    <!-- -->\n' +
         "    {'   '}\n" +
         '-   <h1>children <b>text</b></h1>\n' +
         '+   <h2>children <b>text</b></h2>\n' +
@@ -385,7 +384,6 @@ describe('ReactMount', () => {
       'Warning: Expected server HTML to contain a matching <h2> in <div>.\n\n' +
         '  <div>\n' +
         "    {'nested'}\n" +
-        '    <!-- -->\n' +
         "    {'   '}\n" +
         '    <h1>children <b>text</b></h1>\n' +
         '    <div data-ssr-mismatch-padding="1" />\n' +
@@ -455,7 +453,6 @@ describe('ReactMount', () => {
       "Warning: Expected server HTML to contain a matching text node for {'extra text node'} in <div>.\n\n" +
         '  <div>\n' +
         "    {'nested'}\n" +
-        '    <!-- -->\n' +
         "    {'   '}\n" +
         '    <h1>children <b>text</b></h1>\n' +
         '    <div data-ssr-mismatch-padding="1" />\n' +
@@ -999,7 +996,6 @@ describe('ReactMount', () => {
     ).toWarnDev(
       'Warning: Expected server HTML to contain a matching <span> in <div>.\n\n' +
         '  <div>\n' +
-        '    <!-- a comment -->\n' +
         '+   <span />\n' +
         '  </div>\n\n' +
         '    in span (at **)\n' +
@@ -1022,7 +1018,6 @@ describe('ReactMount', () => {
     ).toWarnDev(
       'Warning: Expected server HTML to contain a matching <span> in <div>.\n\n' +
         '  <div>\n' +
-        '    <!-- a comment <-- --&gt; > -->\n' +
         '-   <div />\n' +
         '+   <span />\n' +
         '  </div>\n\n' +
@@ -1045,7 +1040,6 @@ describe('ReactMount', () => {
     expect(() => ReactDOM.hydrate(<div />, xml)).toWarnDev(
       'Warning: Expected server HTML to contain a matching <div> in <xml>.\n\n' +
         '  <xml>\n' +
-        '    <?dom-processing-instruction content &gt; ?>\n' +
         '+   <div />\n' +
         '  </xml>\n\n' +
         '    in div (at **)',
